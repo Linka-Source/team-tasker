@@ -61,20 +61,46 @@ const resolvers = {
   Mutation: {
     signUp: (_, { input }, { db }) => {
       const hashedPassword = bcrypt.hashSync(input.password);
-      const user = {
+      const newUser = {
         ...input,
         password: hashedPassword,
       }
 
       // save to database
-      const result = await db.collection('Users').insert(user);
+      const result = await db.collection('Users').insert(newUser);
       console.log(result);
 
+      // return first item from the array
+      const user = result.ops[0]
+      return {
+        user,
+        token: 'token'
+      }
     },
 
-    signIn: () => {
+    signIn: async (_, { input }, { db }) => {
+      const user = await db.collection('Users').findOne({ email: input.email })
+    //  if user value doesn't match - throw error
+      if (!user) {
+        throw new Error('Invalid credentials!');
+      }
 
+      // check if the password is correct (compare hashed password with unhashed password)
+      const isPasswordCorrect = bcrypt.compareSync(input.password, user.password);
+      if (!isPasswordCorrect) {
+        throw new Error('Invalid credentials!');
+      }
+
+      return {
+        user,
+        token: 'token',
+      }
     }
+  },
+
+  // return uder id from database (underscore if using correct reference from db - if that's null, it will return id)
+  User: {
+    id: ({ _id, id }) => _id || id,
   }
 };
   

@@ -7,6 +7,28 @@ dotenv.config();
 const { DB_URI, DB_NAME } = process.env;
 
 const typeDefs = gql`
+
+type Query {
+    myTaskLists: [TaskList!]!
+  }
+
+  type Mutation {
+    signUp(input: SignUpInput!): AuthUser!
+    signIn(input: SignInInput!): AuthUser!
+  }
+
+  input SignUpInput {
+    email: String!
+    password: String!
+    name: String!
+    avatar: String
+  }
+  
+  input SignInInput {
+    email: String!
+    password: String!
+  }
+
   type User {
     id: ID!
     name: String!

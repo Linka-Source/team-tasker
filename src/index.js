@@ -23,7 +23,7 @@ type Query {
     name: String!
     avatar: String
   }
-  
+
   input SignInInput {
     email: String!
     password: String!
@@ -52,6 +52,21 @@ type Query {
     taskList: TaskList!
   }
 `;
+
+const resolvers = {
+  Query: {
+    myTaskLists: () => []
+  },
+  Mutation: {
+    signUp: () => {
+
+    },
+
+    signIn: () => {
+
+    }
+  }
+};
   
 
 const start = async () => {

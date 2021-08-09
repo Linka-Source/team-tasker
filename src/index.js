@@ -2,10 +2,14 @@ const { ApolloServer, gql } = require('apollo-server');
 const { MongoClient } = require('mongodb');
 const dotenv = require('dotenv');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 dotenv.config();
 
-const { DB_URI, DB_NAME } = process.env;
+const { DB_URI, DB_NAME, JWT_SECRET } = process.env;
+
+// user will have to sign up again after 14 days when the token expires
+const getToken = (User) => jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '14 days' })
 
 const typeDefs = gql`
 
@@ -74,7 +78,7 @@ const resolvers = {
       const user = result.ops[0]
       return {
         user,
-        token: 'token'
+        token: getToken(user),
       }
     },
 
@@ -93,7 +97,7 @@ const resolvers = {
 
       return {
         user,
-        token: 'token',
+        token: getToken(user),
       }
     }
   },

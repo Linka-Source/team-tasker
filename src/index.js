@@ -59,8 +59,16 @@ const resolvers = {
     myTaskLists: () => []
   },
   Mutation: {
-    signUp: (_, { input }) => {
+    signUp: (_, { input }, { db }) => {
       const hashedPassword = bcrypt.hashSync(input.password);
+      const user = {
+        ...input,
+        password: hashedPassword,
+      }
+
+      // save to database
+      const result = await db.collection('Users').insert(user);
+      console.log(result);
 
     },
 

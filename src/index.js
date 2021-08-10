@@ -36,6 +36,9 @@ type Query {
     deleteTaskList(id: ID!): Boolean!
     # add/invite collaborators
     addUserToTaskList(taskListId: ID!, userId: ID!): TaskList
+
+    # create tasks
+    createToDo(content: String!, taskListId: ID!): ToDo!
   }
 
   input SignUpInput {
@@ -189,6 +192,19 @@ const resolvers = {
 
       return true;
    },
+
+   // create ToDo task items
+   createToDo: async(_, { content, taskListId }, { db, user }) => {
+    if (!user) { throw new Error('Authentication Error. Please sign in'); }
+    const newToDo = {
+      content, 
+      taskListId: ObjectID(taskListId),
+      isCompleted: false,
+    }
+    const result = await db.collection('ToDo').insert(newToDo);
+    return result.ops[0];
+  },
+
 
     // return uder id from database (underscore if using correct reference from db - if that's null, it will return id)
     User: {

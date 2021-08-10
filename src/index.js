@@ -80,6 +80,13 @@ const resolvers = {
       return await db.collection('TaskList') .find({ userIds: user._id }) .toArray();
   },
 
+    getTaskList: async(_, { id }, { db, user }) => {
+      if (!user) { throw new Error('Authentication Error. Please sign in'); }
+    
+      return await db.collection('TaskList').findOne({ _id: ObjectID(id) });
+    }
+  },
+
   Mutation: {
     signUp: (_, { input }, { db }) => {
       const hashedPassword = bcrypt.hashSync(input.password);

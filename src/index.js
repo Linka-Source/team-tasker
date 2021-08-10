@@ -40,6 +40,7 @@ type Query {
     # create tasks
     createToDo(content: String!, taskListId: ID!): ToDo!
     updateToDo(id: ID!, content: String, isCompleted: Boolean): ToDo!
+    deleteToDo(id: ID!): Boolean!
   }
 
   input SignUpInput {
@@ -196,7 +197,7 @@ const resolvers = {
 
    // create ToDo task items
    createToDo: async(_, { content, taskListId }, { db, user }) => {
-    if (!user) { throw new Error('Authentication Error. Please sign in'); }
+    if (!user) { throw new Error('Authentication Error. Please sign in!'); }
     const newToDo = {
       content, 
       taskListId: ObjectID(taskListId),
@@ -215,6 +216,16 @@ const resolvers = {
     return await db.collection('ToDo').findOne({ _id: ObjectID(data.id) });
   },
 
+  deleteToDo: async(_, { id }, { db, user }) => {
+    if (!user) { throw new Error('Authentication Error. Please sign in'); }
+    
+    // TODO only collaborators of this task list should be able to delete
+    await db.collection('ToDo').removeOne({ _id: ObjectID(id) });
+
+    return true;
+  },
+},
+
 
     // return uder id from database (underscore if using correct reference from db - if that's null, it will return id)
     User: {
@@ -228,9 +239,22 @@ const resolvers = {
        userIDs.map((userID) => (
          db.collection('User').findOne({ _id: userID }))
           )
-     }
-   }
+      ),
+
+      // liniing todos to tasklist - return id from tasklist id(item)
+      todos: async ({ _id }, _, { db }) => (
+        await db.collection('ToDo').find({ taskListId: ObjectID(_id)}).toArray()
+      ), 
   };
+
+  // link tasklists and their items (todos) by tasklist id
+  ToDo: {
+    id: ({ _id, id }) => _id || id,
+    taskList: async ({ taskListId }, _, { db }) => (
+      await db.collection('TaskList').findOne({ _id: ObjectID(taskListId) })
+    )
+  },
+};
   
 
 const start = async () => {

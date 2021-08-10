@@ -33,6 +33,7 @@ type Query {
 # returns created tasklist and defines tasklist input
     createTaskList(title: String!): TaskList!
     updateTaskList(id: ID!, title: String!): TaskList!
+    deleteTaskList(id: ID!): Boolean!
   }
 
   input SignUpInput {
@@ -115,6 +116,7 @@ const resolvers = {
       }
     },
 
+    // create tasklist
     createTaskList: async(_, { title }, { db, user }) => {
       // only an authenticated user can use tasklist
       if (!user) {
@@ -132,34 +134,45 @@ const resolvers = {
       return result.ops[0];
   },
 
-  updateTaskList: async(_, { id, title }, { db, user }) => {
-    if (!user) { throw new Error('Authentication Error. Please sign in'); }
+  // update tasklist
+   updateTaskList: async(_, { id, title }, { db, user }) => {
+     if (!user) { throw new Error('Authentication Error. Please sign in'); }
 
-    const result = await db.collection('TaskList') .updateOne({
-    // which tasklist do we want to update - picked by id
-    _id: ObjectID(id)}, 
-    {
-      $set: { title }
-  })
+     const result = await db.collection('TaskList') .updateOne({
+     // which tasklist do we want to update - picked by id
+      _id: ObjectID(id)}, 
+     {
+       $set: { title }
+     })
+     // update database
+     return await db.collection('TaskList').findOne({ _id: ObjectID(id) });
+   },
+
+    // delete tasklist
+    deleteTaskList: async(_, { id }, { db, user }) => {
+      if (!user) { throw new Error('Authentication Error. Please sign in'); }
     
-    return await db.collection('TaskList').findOne({ _id: ObjectID(id) });
-  },
+       // only collaborators of this task list can delete tasklist (by id)
+      await db.collection('TaskList').removeOne({ _id: ObjectID(id) });
 
-  // return uder id from database (underscore if using correct reference from db - if that's null, it will return id)
-  User: {
-    id: ({ _id, id }) => _id || id,
-  }
+      return true;
+   },
 
-  TaskList: {
-    id: ({ _id, id }) => _id || id,
-    progress: () => 0,
-    users: async ({ userIDs }, _, { db }) => Promise.all(
-      userIDs.map((userID) => (
-        db.collection('User').findOne({ _id: userID }))
-        )
+    // return uder id from database (underscore if using correct reference from db - if that's null, it will return id)
+    User: {
+      id: ({ _id, id }) => _id || id,
     }
-  }
-};
+
+    TaskList: {
+      id: ({ _id, id }) => _id || id,
+      progress: () => 0,
+      users: async ({ userIDs }, _, { db }) => Promise.all(
+       userIDs.map((userID) => (
+         db.collection('User').findOne({ _id: userID }))
+          )
+     }
+   }
+  };
   
 
 const start = async () => {

@@ -32,6 +32,7 @@ type Query {
     signIn(input: SignInInput!): AuthUser!
 # returns created tasklist and defines tasklist input
     createTaskList(title: String!): TaskList!
+    updateTaskList(id: ID!, title: String!): TaskList!
   }
 
   input SignUpInput {
@@ -75,10 +76,9 @@ const resolvers = {
     myTaskLists: async (_, __, { db, user }) => {
       if (!user) { throw new Error('Authentication Error. Please sign in!'); }
 
-      return await db.collection('TaskList')
-                                .find({ userIds: user._id })
-                                .toArray();
+      return await db.collection('TaskList') .find({ userIds: user._id }) .toArray();
   },
+
   Mutation: {
     signUp: (_, { input }, { db }) => {
       const hashedPassword = bcrypt.hashSync(input.password);
@@ -130,7 +130,19 @@ const resolvers = {
       // insert above object (new tasklist) into database
       const result = await db.collection('TaskList').insert(newTaskList);
       return result.ops[0];
-    }
+  },
+
+  updateTaskList: async(_, { id, title }, { db, user }) => {
+    if (!user) { throw new Error('Authentication Error. Please sign in'); }
+
+    const result = await db.collection('TaskList') .updateOne({
+    // which tasklist do we want to update - picked by id
+    _id: ObjectID(id)}, 
+    {
+      $set: { title }
+  })
+    
+    return await db.collection('TaskList').findOne({ _id: ObjectID(id) });
   },
 
   // return uder id from database (underscore if using correct reference from db - if that's null, it will return id)

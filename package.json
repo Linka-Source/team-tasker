@@ -14,17 +14,19 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/Linka-Source/team-tasker/issues"
   },
   "homepage": "https://github.com/Linka-Source/team-tasker#readme",
   "dependencies": {
-    "apollo-server": "^2.22.2",
-    "bcryptjs": "^2.4.3",
-    "dotenv": "^8.2.0",
-    "graphql": "^15.5.0",
-    "jsonwebtoken": "^8.5.1",
-    "mongodb": "^3.6.5"
+    "apollo-server": "^3.1.2",
+    "graphql": "^15.5.1",
+    "nodemon": "^2.0.12"
   }
 }
+
+// npm install mongodb 
+// npm install bcrypt
+// npm install dotenv
+// npm install jsonwebtoken

@@ -25,6 +25,7 @@ const typeDefs = gql`
 
 type Query {
     myTaskLists: [TaskList!]!
+    getTaskList(id: ID!): TaskList
   }
 
   type Mutation {
@@ -55,10 +56,16 @@ type Query {
     password: String!
   }
 
+  type AuthUser {
+    user: User!
+    token: String!
+  }
+
   type User {
     id: ID!
     name: String!
     email: String!
+    avatar: String
   }
 
   type TaskList {
@@ -84,18 +91,20 @@ const resolvers = {
     myTaskLists: async (_, __, { db, user }) => {
       if (!user) { throw new Error('Authentication Error. Please sign in!'); }
 
-      return await db.collection('TaskList') .find({ userIds: user._id }) .toArray();
+      return await db.collection('TaskList') 
+      .find({ userIds: user._id }) 
+      .toArray();
   },
 
     getTaskList: async(_, { id }, { db, user }) => {
-      if (!user) { throw new Error('Authentication Error. Please sign in'); }
+      if (!user) { throw new Error('Authentication Error. Please sign in!'); }
     
       return await db.collection('TaskList').findOne({ _id: ObjectID(id) });
     }
   },
 
   Mutation: {
-    signUp: (_, { input }, { db }) => {
+    signUp: async (_, { input }, { db }) => {
       const hashedPassword = bcrypt.hashSync(input.password);
       const newUser = {
         ...input,
@@ -133,14 +142,12 @@ const resolvers = {
     // create tasklist
     createTaskList: async(_, { title }, { db, user }) => {
       // only an authenticated user can use tasklist
-      if (!user) {
-        throw new Error('Authentication Error. Please sign in!');
-      }
+      if (!user) { throw new Error('Authentication Error. Please sign in!');}
 
       const newTaskList = {
         title,
-        createdAt: new  Date () .toISOString(),
-        userIDs: [user._id]
+        createdAt: new  Date() .toISOString(),
+        userIds: [user._id]
       }
 
       // insert above object (new tasklist) into database
@@ -150,9 +157,10 @@ const resolvers = {
 
   // update tasklist
    updateTaskList: async(_, { id, title }, { db, user }) => {
-     if (!user) { throw new Error('Authentication Error. Please sign in'); }
+     if (!user) { throw new Error('Authentication Error. Please sign in!'); }
 
-     const result = await db.collection('TaskList') .updateOne({
+     const result = await db.collection('TaskList') 
+     .updateOne({
      // which tasklist do we want to update - picked by id
       _id: ObjectID(id)}, 
      {
@@ -187,7 +195,7 @@ const resolvers = {
 
     // delete tasklist
     deleteTaskList: async(_, { id }, { db, user }) => {
-      if (!user) { throw new Error('Authentication Error. Please sign in'); }
+      if (!user) { throw new Error('Authentication Error. Please sign in!'); }
     
        // only collaborators of this task list can delete tasklist (by id)
       await db.collection('TaskList').removeOne({ _id: ObjectID(id) });
@@ -211,15 +219,19 @@ const resolvers = {
   updateToDo: async(_, data, { db, user }) => {
     if (!user) { throw new Error('Authentication Error. Please sign in'); }
 
-    const result = await db.collection('ToDo') .updateOne({_id: ObjectID(data.id)}, { $set: data })
+    const result = await db.collection('ToDo') 
+    .updateOne({
+      _id: ObjectID(data.id)
+    }, { $set: data })
     
     return await db.collection('ToDo').findOne({ _id: ObjectID(data.id) });
   },
 
+  // delete items (todos)
   deleteToDo: async(_, { id }, { db, user }) => {
     if (!user) { throw new Error('Authentication Error. Please sign in'); }
     
-    // TODO only collaborators of this task list should be able to delete
+    // only collaborators of this task list should be able to delete todos
     await db.collection('ToDo').removeOne({ _id: ObjectID(id) });
 
     return true;
@@ -234,18 +246,28 @@ const resolvers = {
 
     TaskList: {
       id: ({ _id, id }) => _id || id,
-      progress: () => 0,
-      users: async ({ userIDs }, _, { db }) => Promise.all(
-       userIDs.map((userID) => (
-         db.collection('User').findOne({ _id: userID }))
+      progress: async ({ _id }), _, { db }) => {
+        const todos = await db.collection('ToDo').find({ taskListId: ObjectID(_id)}).toArray()
+        const completed = todos.filter(todo => todoisCompleted);
+
+        if (todos.length === 0) {
+          return 0;
+        }
+
+        return 100 * completed.length / todos.length
+      },
+
+      users: async ({ userIds }, _, { db }) => Promise.all(
+       userIds.map((userID) => (
+         db.collection('Users').findOne({ _id: userID }))
           )
       ),
 
-      // liniing todos to tasklist - return id from tasklist id(item)
+      // linking todos to tasklist - return id from tasklist id(item)
       todos: async ({ _id }, _, { db }) => (
         await db.collection('ToDo').find({ taskListId: ObjectID(_id)}).toArray()
       ), 
-  };
+  },
 
   // link tasklists and their items (todos) by tasklist id
   ToDo: {

@@ -34,6 +34,8 @@ type Query {
     createTaskList(title: String!): TaskList!
     updateTaskList(id: ID!, title: String!): TaskList!
     deleteTaskList(id: ID!): Boolean!
+    # add/invite collaborators
+    addUserToTaskList(taskListId: ID!, userId: ID!): TaskList
   }
 
   input SignUpInput {
@@ -154,6 +156,29 @@ const resolvers = {
      // update database
      return await db.collection('TaskList').findOne({ _id: ObjectID(id) });
    },
+
+  //  invite collaborators to tasklists by id
+   addUserToTaskList: async(_, { taskListId, userId }, { db, user }) => {
+    if (!user) { throw new Error('Authentication Error. Please sign in'); }
+
+    const taskList = await db.collection('TaskList').findOne({ _id: ObjectID(taskListId) });
+    if (!taskList) {
+      return null;
+    }
+    if (taskList.userIds.find((dbId) => dbId.toString() === userId.toString())) {
+      return taskList;
+    }
+    await db.collection('TaskList')
+            .updateOne({
+              _id: ObjectID(taskListId)
+            }, {
+              $push: {
+                userIds: ObjectID(userId),
+              }
+            })
+    taskList.userIds.push(ObjectID(userId))
+    return taskList;
+  },
 
     // delete tasklist
     deleteTaskList: async(_, { id }, { db, user }) => {

@@ -9,7 +9,7 @@ dotenv.config();
 const { DB_URI, DB_NAME, JWT_SECRET } = process.env;
 
 // user will have to sign up again after 14 days when the token expires
-const getToken = (User) => jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '14 days' });
+const getToken = (user) => jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '14 days' });
 
 const getUserFromToken = async (token, db) => {
   if (!token) { return null }
@@ -72,7 +72,12 @@ type Query {
 
 const resolvers = {
   Query: {
-    myTaskLists: () => []
+    myTaskLists: async (_, __, { db, user }) => {
+      if (!user) { throw new Error('Authentication Error. Please sign in!'); }
+
+      return await db.collection('TaskList')
+                                .find({ userIds: user._id })
+                                .toArray();
   },
   Mutation: {
     signUp: (_, { input }, { db }) => {
@@ -124,12 +129,23 @@ const resolvers = {
 
       // insert above object (new tasklist) into database
       const result = await db.collection('TaskList').insert(newTaskList);
+      return result.ops[0];
     }
   },
 
   // return uder id from database (underscore if using correct reference from db - if that's null, it will return id)
   User: {
     id: ({ _id, id }) => _id || id,
+  }
+
+  TaskList: {
+    id: ({ _id, id }) => _id || id,
+    progress: () => 0,
+    users: async ({ userIDs }, _, { db }) => Promise.all(
+      userIDs.map((userID) => (
+        db.collection('User').findOne({ _id: userID }))
+        )
+    }
   }
 };
   

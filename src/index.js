@@ -1,5 +1,5 @@
 const { ApolloServer, gql } = require('apollo-server');
-const { MongoClient } = require('mongodb');
+const { MongoClient, ObjectID } = require('mongodb');
 const dotenv = require('dotenv');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -9,7 +9,17 @@ dotenv.config();
 const { DB_URI, DB_NAME, JWT_SECRET } = process.env;
 
 // user will have to sign up again after 14 days when the token expires
-const getToken = (User) => jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '14 days' })
+const getToken = (User) => jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '14 days' });
+
+const getUserFromToken = async (token, db) => {
+  if (!token) { return null }
+// token must contain id to be valid
+  const tokenData = jwt.verify(token, JWT_SECRET);
+  if (!tokenData?.id) {
+    return null;
+  }
+  return await db.collection('Users').findOne({ _id: ObjectID(tokenData.id) });
+}
 
 const typeDefs = gql`
 
@@ -20,6 +30,8 @@ type Query {
   type Mutation {
     signUp(input: SignUpInput!): AuthUser!
     signIn(input: SignInInput!): AuthUser!
+# returns created tasklist and defines tasklist input
+    createTaskList(title: String!): TaskList!
   }
 
   input SignUpInput {
@@ -83,15 +95,12 @@ const resolvers = {
     },
 
     signIn: async (_, { input }, { db }) => {
-      const user = await db.collection('Users').findOne({ email: input.email })
-    //  if user value doesn't match - throw error
-      if (!user) {
-        throw new Error('Invalid credentials!');
-      }
+      const user = await db.collection('Users').findOne({ email: input.email });
 
       // check if the password is correct (compare hashed password with unhashed password)
-      const isPasswordCorrect = bcrypt.compareSync(input.password, user.password);
-      if (!isPasswordCorrect) {
+      const isPasswordCorrect = user && bcrypt.compareSync(input.password, user.password);
+       //  if user value doesn't match - throw error
+       if (!user|| !isPasswordCorrect) {
         throw new Error('Invalid credentials!');
       }
 
@@ -99,6 +108,22 @@ const resolvers = {
         user,
         token: getToken(user),
       }
+    },
+
+    createTaskList: async(_, { title }, { db, user }) => {
+      // only an authenticated user can use tasklist
+      if (!user) {
+        throw new Error('Authentication Error. Please sign in!');
+      }
+
+      const newTaskList = {
+        title,
+        createdAt: new  Date () .toISOString(),
+        userIDs: [user._id]
+      }
+
+      // insert above object (new tasklist) into database
+      const result = await db.collection('TaskList').insert(newTaskList);
     }
   },
 
